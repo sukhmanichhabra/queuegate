@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+
+allowBuilds:
+  "@nestjs/core": true
+  "msgpackr-extract": true
+  "bcrypt": true
+  "@prisma/client": true
+  "@prisma/engines": true
+  "prisma": true
+  unrs-resolver: set this to true or false
