@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String         @unique
+  password_hash String
+  created_at    DateTime?      @default(now()) @db.Timestamptz()
+  roles         UserRole[]
+  tokens        RefreshToken[]
+  merchants     Merchant[]     @relation("OwnerToMerchant")
+  queue_entries QueueEntry[]
+}
+
+model UserRole {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String    @db.Uuid
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role        Role
+  merchant_id String?   @db.Uuid
+  merchant    Merchant? @relation(fields: [merchant_id], references: [id], onDelete: SetNull)
+}
+
+enum Role {
+  SHOPPER
+  MERCHANT_ADMIN
+  OPS_ADMIN
+}
+
+model RefreshToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token_hash String
+  expires_at DateTime  @db.Timestamptz()
+  revoked_at DateTime? @db.Timestamptz()
+  family_id  String    @db.Uuid
+
+  @@index([family_id])
+}
+
+model Merchant {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  owner_user_id String?    @db.Uuid
+  owner         User?      @relation("OwnerToMerchant", fields: [owner_user_id], references: [id], onDelete: SetNull)
+  created_at    DateTime?  @default(now()) @db.Timestamptz()
+  roles         UserRole[]
+  events        Event[]
+}
+
+model Event {
+  id                      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchant_id             String             @db.Uuid
+  merchant                Merchant           @relation(fields: [merchant_id], references: [id], onDelete: Cascade)
+  title                   String
+  artist                  String
+  venue                   String
+  image_url               String?
+  show_date               DateTime           @db.Timestamptz()
+  ticket_price            Float              // kept as fallback for events without categories
+  series_id               String?
+  capacity                Int
+  admission_rate_per_min  Int                @default(60)
+  baseline_admission_rate Int                @default(60)
+  status                  EventStatus?       @default(DRAFT)
+  created_at              DateTime?          @default(now()) @db.Timestamptz()
+  queue_entries           QueueEntry[]
+  rate_logs               AdmissionRateLog[]
+  ticket_categories       TicketCategory[]
+}
+
+enum EventStatus {
+  DRAFT
+  ON_SALE
+  PAUSED
+  SOLD_OUT
+  ENDED
+}
+
+model TicketCategory {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id      String       @db.Uuid
+  event         Event        @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  name          String       // "VIP Floor", "General Admission", "Upper Tier"
+  description   String?
+  price         Float
+  capacity      Int
+  color         String       @default("#e11d48")
+  sort_order    Int          @default(0)
+  queue_entries QueueEntry[]
+
+  @@index([event_id])
+  @@map("ticket_categories")
+}
+
+model QueueEntry {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id              String          @db.Uuid
+  event                 Event           @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  ticket_category_id    String?         @db.Uuid
+  ticket_category       TicketCategory? @relation(fields: [ticket_category_id], references: [id], onDelete: SetNull)
+  session_id            String
+  user_id               String?         @db.Uuid
+  user                  User?           @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  status                QueueStatus?    @default(WAITING)
+  quantity              Int             @default(1)
+  joined_at             DateTime?       @default(now()) @db.Timestamptz()
+  admitted_at           DateTime?       @db.Timestamptz()
+  expires_at            DateTime?       @db.Timestamptz()
+  checkout_completed_at DateTime?       @db.Timestamptz()
+  checkout_token_jti    String?
+
+  @@unique([session_id, event_id])
+  @@index([event_id, status])
+  @@index([ticket_category_id])
+  @@map("queue_entries")
+}
+
+enum QueueStatus {
+  WAITING
+  ADMITTED
+  EXPIRED
+  COMPLETED
+}
+
+model AdmissionRateLog {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id   String     @db.Uuid
+  event      Event      @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  rate       Int
+  reason     RateReason
+  changed_at DateTime?  @default(now()) @db.Timestamptz()
+
+  @@index([event_id, changed_at])
+  @@map("admission_rate_log")
+}
+
+enum RateReason {
+  auto_throttle
+  manual
+}
