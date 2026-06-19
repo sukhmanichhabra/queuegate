@@ -1,0 +1,2 @@
+INSERT INTO "User" (id, email, password_hash) VALUES ('00000000-0000-0000-0000-111111111111', 'merchant@test.com', 'hash');
+INSERT INTO "UserRole" (user_id, role, merchant_id) VALUES ('00000000-0000-0000-0000-111111111111', 'MERCHANT_ADMIN', '00000000-0000-0000-0000-000000000001');
