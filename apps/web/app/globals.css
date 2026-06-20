@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts are loaded via layout.tsx next/font ── */
+
+@layer base {
+  :root {
+    /* ── shadcn/ui HSL vars (keep for component compat) ── */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --radius: 12px;
+
+    /* ── QueueGate / Stitch Design Tokens ── */
+    --bg-base: #07070f;
+    --bg-surface: #0f1417;
+    --bg-card: #0f1417;
+
+    /* Brand palette */
+    --brand-red: #e11d48;
+    --brand-yellow: #facc15;
+    --brand-red-glow: rgba(225, 29, 72, 0.4);
+
+    /* Text */
+    --text-primary: #dfe3e7;
+    --text-muted: #9ca3af;
+    --text-pink: #ffb3b6;
+    --text-amber: #ffb95f;
+
+    /* Glass */
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-bg-highlight: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-strong: rgba(255, 255, 255, 0.12);
+    --glass-blur: blur(16px);
+
+    /* Legacy compat aliases */
+    --accent-primary: #e11d48;
+    --accent-secondary: #facc15;
+    --accent-glow: rgba(225, 29, 72, 0.4);
+    --success: #00b87c;
+    --warning: #ffb95f;
+    --danger: #e11d48;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    background-color: #07070f;
+    color: #dfe3e7;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   GLASSMORPHISM PANELS
+══════════════════════════════════════════════════ */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-highlight {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Alias used throughout existing components — keep identical spec */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+}
+
+/* ══════════════════════════════════════════════════
+   ACCENT GLOWS & BUTTONS
+══════════════════════════════════════════════════ */
+.glow-button {
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glow-button:hover {
+  box-shadow: 0 0 30px rgba(225, 29, 72, 0.7);
+  transform: translateY(-2px);
+}
+
+.neon-text-glow {
+  text-shadow: 0 0 20px rgba(225, 29, 72, 0.6), 0 0 40px rgba(225, 29, 72, 0.4);
+}
+
+.text-glow {
+  text-shadow: 0 0 12px rgba(225, 29, 72, 0.6);
+}
+
+/* ══════════════════════════════════════════════════
+   SPOTLIGHTS / BACKGROUNDS
+══════════════════════════════════════════════════ */
+.spotlight-accent {
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.spotlight-bg {
+  background:
+    radial-gradient(circle at top right, rgba(225, 29, 72, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at bottom left, rgba(238, 152, 0, 0.05) 0%, transparent 40%);
+}
+
+/* ══════════════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════════════ */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.pulse-live {
+  position: relative;
+}
+.pulse-live::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  background-color: #e11d48;
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  z-index: -1;
+}
+
+@keyframes pulse-ring-yellow {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(250, 204, 21, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+}
+
+@keyframes pulse-ring-red {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(225, 29, 72, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+}
+
+.pulse-dot-red {
+  animation: pulse-ring-red 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.pulse-dot-yellow {
+  animation: pulse-ring-yellow 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-glow {
+  0% { text-shadow: 0 0 4px rgba(225, 29, 72, 0.4); }
+  50% { text-shadow: 0 0 12px rgba(225, 29, 72, 0.8), 0 0 24px rgba(225, 29, 72, 0.4); }
+  100% { text-shadow: 0 0 4px rgba(225, 29, 72, 0.4); }
+}
+
+.pulse-timer {
+  animation: pulse-glow 2s infinite;
+}
+
+/* ══════════════════════════════════════════════════
+   MARQUEE
+══════════════════════════════════════════════════ */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-content {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+/* ══════════════════════════════════════════════════
+   CONCERT AUTH — stage bar gradient scroll
+══════════════════════════════════════════════════ */
+@keyframes stage-bar-scroll {
+  0%   { background-position: 0%   50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.stage-bar {
+  animation: stage-bar-scroll 3s linear infinite;
+}
+
+/* ══════════════════════════════════════════════════
+   AUTH CARD ENTRANCE
+══════════════════════════════════════════════════ */
+@keyframes card-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+.auth-card-float {
+  animation: card-float 4s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════
+   CONCERT SPOTLIGHT SWEEP
+══════════════════════════════════════════════════ */
+@keyframes spotlight-sweep {
+  0%, 100% { transform: rotate(-25deg); }
+  50%       { transform: rotate(25deg); }
+}
+
+/* ══════════════════════════════════════════════════
+   NOTE FLOAT
+══════════════════════════════════════════════════ */
+@keyframes note-float {
+  0%   { transform: translateY(0) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 0.5; }
+  90%  { opacity: 0.3; }
+  100% { transform: translateY(-120vh) rotate(45deg); opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════════ */
+.writing-vertical-rl {
+  writing-mode: vertical-rl;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* NOTE: .sector / seat-map CSS removed — no seat model in backend (FIFO queue admission) */
