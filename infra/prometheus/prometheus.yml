@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 5s       # how often Prometheus pulls /metrics
+  evaluation_interval: 5s   # how often rules are evaluated
+
+scrape_configs:
+  - job_name: 'stagedoor-api'
+    # The NestJS API runs as the `api` service in Docker Compose.
+    # Docker Compose provides automatic container DNS: service names resolve
+    # to container IPs within the shared `default` network. Prometheus and the
+    # API container are on that same network, so `api:4000` is reachable here.
+    static_configs:
+      - targets: ['api:4000']
+    metrics_path: /metrics
+    scheme: http
