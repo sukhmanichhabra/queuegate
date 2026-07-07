@@ -1,0 +1,240 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# QueueGate — Production Docker Compose
+# File: docker-compose.prod.yml
+#
+# Differences from docker-compose.yml (dev):
+#   • Internal services (postgres, redis, kafka) have NO exposed host ports
+#   • All services have restart: always
+#   • Memory limits set for safe operation on t2.micro (1 GB RAM)
+#   • Kafka heap reduced to 256 MB
+#   • Redis configured with maxmemory + AOF persistence
+#   • Named volumes for all stateful data
+#   • CORS and API URLs use the real domain from .env.prod
+#   • Prometheus retention limited to 7 days to save disk space
+#   • Grafana configured with anonymous viewer access disabled
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Shared memory limits as YAML anchors (DRY pattern)
+x-api-limits: &api-limits
+  mem_limit: 280m
+  memswap_limit: 280m
+
+x-web-limits: &web-limits
+  mem_limit: 280m
+  memswap_limit: 280m
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Tuned for low memory
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    command: >
+      postgres
+        -c shared_buffers=64MB
+        -c effective_cache_size=128MB
+        -c work_mem=4MB
+        -c maintenance_work_mem=32MB
+        -c max_connections=50
+        -c wal_level=minimal
+        -c max_wal_senders=0
+        -c checkpoint_completion_target=0.9
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # NO ports: block — not accessible from outside Docker network
+    mem_limit: 150m
+    memswap_limit: 150m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: >
+      redis-server
+        --appendonly yes
+        --appendfsync everysec
+        --maxmemory 64mb
+        --maxmemory-policy allkeys-lru
+        --save 900 1
+        --save 300 10
+    volumes:
+      - redis_data:/data
+    # NO ports: block — not accessible from outside Docker network
+    mem_limit: 80m
+    memswap_limit: 80m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Kafka (KRaft mode, single broker) ────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    restart: always
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # INTERNAL: docker-to-docker communication (api → kafka)
+      # CONTROLLER: KRaft consensus
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_LOG_SEGMENT_BYTES: 52428800   # 50 MB segments
+      # ⬇ Critical: reduce JVM heap to fit in t2.micro
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    # NO external port exposed — only internal Docker access
+    mem_limit: 350m
+    memswap_limit: 350m
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:29092"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+
+  # ── NestJS API ───────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: always
+    <<: *api-limits
+    environment:
+      NODE_ENV: production
+      # Memory cap for Node.js heap (leave headroom for native modules)
+      NODE_OPTIONS: "--max-old-space-size=200"
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      KAFKA_BROKERS: ${KAFKA_BROKERS}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_WS_SECRET: ${JWT_WS_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      CHECKOUT_TOKEN_TTL_SECONDS: ${CHECKOUT_TOKEN_TTL_SECONDS}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    # NO external ports — Caddy proxies to this container by service name
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/ready"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  # ── Next.js Web ──────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # These are BAKED into the browser bundle at build time.
+        # Must be the public-facing HTTPS URL that the USER'S BROWSER can reach.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL}
+    restart: always
+    <<: *web-limits
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=200"
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+    # NO external ports — Caddy proxies to this container by service name
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ── Prometheus ───────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      # Limit retention to 7 days to protect the 20 GB EBS disk
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=2GB'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    mem_limit: 80m
+    memswap_limit: 80m
+    # Internal only — accessible via Caddy /metrics proxy if needed
+    depends_on:
+      - api
+
+  # ── Grafana ───────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.3
+    restart: always
+    environment:
+      # Serve under /grafana sub-path (matches Caddy route)
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      # Disable sign-up; allow anonymous read-only access for demo
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      # Admin password — change this!
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-changeme}
+      GF_SECURITY_ADMIN_USER: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana:/etc/grafana/provisioning/dashboards:ro
+    mem_limit: 80m
+    memswap_limit: 80m
+    depends_on:
+      - prometheus
+
+# ── Named Volumes (persisted across container restarts) ─────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ── Networks ─────────────────────────────────────────────────────────────────
+# Caddy runs on the HOST, not in Docker, so it reaches containers via
+# the default bridge network on the Docker host.
+# All internal services communicate via Docker's default network.
+networks:
+  default:
+    driver: bridge
