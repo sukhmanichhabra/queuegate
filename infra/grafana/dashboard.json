@@ -1,0 +1,53 @@
+{
+  "uid": "queuegate-main",
+  "title": "QueueGate Live",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Queue Depth",
+      "targets": [{ "expr": "queue_depth_total", "legendFormat": "{{event_id}}" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#7c3aed" }, "custom": { "fillOpacity": 20 } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Admission Rate (per min)",
+      "targets": [{ "expr": "admission_rate_per_min", "legendFormat": "{{event_id}}" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#06b6d4" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "Checkout Errors",
+      "targets": [{ "expr": "rate(checkout_errors_total[1m])", "legendFormat": "errors/min" }],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#ef4444" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Auto-Throttle Activations",
+      "targets": [{ "expr": "throttle_activations_total" }],
+      "options": {
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "value": 0, "color": "#10b981" },
+            { "value": 1, "color": "#f59e0b" },
+            { "value": 5, "color": "#ef4444" }
+          ]
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    }
+  ],
+  "schemaVersion": 38
+}
