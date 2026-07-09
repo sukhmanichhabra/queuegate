@@ -1,0 +1,101 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# QueueGate — Caddy Reverse Proxy Configuration
+#
+# Deploy to: /etc/caddy/Caddyfile on the EC2 instance.
+# Caddy automatically obtains & renews a Let's Encrypt TLS certificate.
+#
+# Replace "queuegate.yourdomain.com" with your actual domain before deploying.
+# If you're testing with just an IP (no domain), replace with the bare IP and
+# remove the tls directive — Caddy will serve HTTP only.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Global options
+{
+    # Use the staging ACME server while testing to avoid Let's Encrypt rate limits.
+    # Comment this out once you've confirmed everything works.
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+
+    # Email for Let's Encrypt expiry notifications
+    email you@yourdomain.com
+}
+
+queuegate.yourdomain.com {
+
+    # ── API routes (/api/*) → NestJS on port 4000 ────────────────────────────
+    # The API is served at /api/* externally. Caddy strips the /api prefix
+    # before forwarding, so NestJS sees /auth/login, /events, etc. as-is.
+    handle /api/* {
+        uri strip_prefix /api
+        reverse_proxy api:4000 {
+            # Health check: only send to healthy upstream
+            health_uri /ready
+            health_interval 15s
+            health_timeout 5s
+        }
+    }
+
+    # ── WebSocket (Socket.IO) → NestJS on port 4000 ──────────────────────────
+    # Socket.IO uses /socket.io/* for handshake and long-polling fallback.
+    # Must be declared BEFORE the general /** catch-all.
+    handle /socket.io/* {
+        reverse_proxy api:4000 {
+            # Forward WebSocket upgrade headers
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # ── Prometheus metrics (internal use — restrict in production) ────────────
+    # Accessible at /metrics — only needed for Grafana Cloud or external scraping.
+    # Comment this block out to hide Prometheus from the public internet.
+    handle /metrics {
+        reverse_proxy api:4000
+    }
+
+    # ── Grafana dashboard (/grafana/*) → Grafana on port 3001 ────────────────
+    handle /grafana/* {
+        uri strip_prefix /grafana
+        reverse_proxy grafana:3001
+    }
+
+    # ── Next.js frontend (catch-all) → port 3000 ─────────────────────────────
+    handle /* {
+        reverse_proxy web:3000 {
+            health_uri /
+            health_interval 30s
+            health_timeout 5s
+        }
+    }
+
+    # ── Security headers ──────────────────────────────────────────────────────
+    header {
+        # Remove server fingerprint
+        -Server
+        # Enable HSTS (1 year)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # Stop MIME sniffing
+        X-Content-Type-Options "nosniff"
+        # Basic XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # ── Logging ───────────────────────────────────────────────────────────────
+    log {
+        output file /var/log/caddy/queuegate-access.log {
+            roll_size 10mb
+            roll_keep 3
+        }
+        format console
+        level INFO
+    }
+}
+
+# ── HTTP → HTTPS redirect (Caddy handles this automatically) ─────────────────
+# Caddy always redirects http:// to https:// when a TLS domain is configured.
+# No extra config needed.
