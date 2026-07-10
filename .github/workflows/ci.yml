@@ -1,0 +1,147 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-and-build-check:
+    name: Test and Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Start Database and Infrastructure Services
+        run: docker compose up -d postgres redis kafka
+        
+      - name: Wait for Infrastructure to be ready
+        run: |
+          # Sleep to allow services to fully initialize before running migrations.
+          # docker compose up -d does not block until healthchecks pass by default in older compose versions,
+          # but we can explicitly wait for healthy status:
+          docker compose wait postgres redis kafka || sleep 15
+
+      - name: Lint Projects
+        run: pnpm run --filter api --filter web lint
+
+      - name: Run Database Migrations
+        run: pnpm --filter api run migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Generate Prisma Client
+        run: pnpm --filter api exec prisma generate
+
+      - name: Run API Unit Tests
+        run: pnpm --filter api run test
+
+      - name: Run API E2E Tests
+        run: pnpm --filter api run test:e2e
+        env:
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_WS_SECRET: ${{ secrets.JWT_WS_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          KAFKA_BROKERS: ${{ secrets.KAFKA_BROKERS }}
+
+      - name: Run Web Component Tests (RTL)
+        run: pnpm --filter web run test:unit
+
+      - name: Web Build Check (Compilation Test)
+        # This acts as a compilation check to ensure the frontend compiles cleanly.
+        run: pnpm --filter web run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_WS_URL: http://localhost:4000
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install chromium --with-deps
+        working-directory: ./apps/web
+
+      - name: Start native API
+        run: pnpm --filter api run start:dev &
+        env:
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_WS_SECRET: ${{ secrets.JWT_WS_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          KAFKA_BROKERS: ${{ secrets.KAFKA_BROKERS }}
+
+      - name: Start native Web
+        run: pnpm --filter web run dev &
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_WS_URL: http://localhost:4000
+
+      - name: Wait for servers to be ready
+        run: |
+          npx wait-on tcp:localhost:4000 tcp:localhost:3000 -t 60000
+
+      - name: Run Web E2E Tests
+        run: pnpm --filter web run test:e2e
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_WS_URL: http://localhost:4000
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-and-build-check]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build API Image
+        run: docker compose build api
+        env:
+          # Tag the image with the specific git commit SHA, not just 'latest'
+          TAG: ${{ github.sha }}
+
+      - name: Tag API Image
+        run: docker tag queuegate-api:latest queuegate-api:${{ github.sha }}
+
+      - name: Build Web Image
+        run: docker compose build web
+        env:
+          TAG: ${{ github.sha }}
+
+      - name: Tag Web Image
+        run: docker tag queuegate-web:latest queuegate-web:${{ github.sha }}
+        
+      - name: Push Images (Skipped)
+        # This is explicitly skipped. We have no defined container registry (e.g. ECR, Docker Hub)
+        # for this project yet. Pushing fake images is out of scope.
+        run: echo "Skipping image push until a container registry is selected."
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    # Manually gated. Only run if manually triggered via workflow_dispatch, or left as a placeholder
+    # until the actual deployment infrastructure is chosen.
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Deploy Placeholder
+        run: |
+          echo "Deployment step reached."
+          echo "This is a placeholder for the future deployment logic (e.g. AWS ECS, Kubernetes)."
+          echo "It will deploy the images tagged with: ${{ github.sha }}"
