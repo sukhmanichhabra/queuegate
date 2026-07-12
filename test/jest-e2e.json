@@ -1,0 +1,16 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testRegex": "test/integration/.*\\.e2e\\.ts$",
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", {
+      "tsconfig": "../../test/tsconfig.test.json",
+      "diagnostics": false
+    }]
+  },
+  "modulePaths": ["<rootDir>/apps/api/node_modules"],
+  "testEnvironment": "node",
+  "testTimeout": 60000,
+  "roots": ["<rootDir>/test/integration"],
+  "globalSetup": "<rootDir>/test/global-setup.js"
+}

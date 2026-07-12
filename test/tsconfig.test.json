@@ -1,0 +1,13 @@
+{
+  "extends": "../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../apps/api",
+    "typeRoots": [
+      "../apps/api/node_modules/@types",
+      "../apps/api/node_modules"
+    ],
+    "types": ["jest", "node"],
+    "paths": {}
+  },
+  "include": ["unit/**/*", "integration/**/*"]
+}

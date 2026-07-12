@@ -1,0 +1,21 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../",
+  "testRegex": "test/unit/.*\\.test\\.ts$",
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", {
+      "tsconfig": {
+        "extends": "../apps/api/tsconfig.json",
+        "compilerOptions": {
+          "baseUrl": "../apps/api",
+          "paths": {}
+        }
+      }
+    }]
+  },
+  "testEnvironment": "node",
+  "testTimeout": 15000,
+  "modulePaths": [
+    "<rootDir>/apps/api/node_modules"
+  ]
+}
