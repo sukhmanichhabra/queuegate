@@ -212,6 +212,9 @@ jobs:
             set -euo pipefail
             cd "$DEPLOY_PATH"
 
+            echo "==> Updating CORS_ORIGINS in .env.prod for domain migration..."
+            sed -i 's|^CORS_ORIGINS=.*|CORS_ORIGINS=https://queuegate.sukhmanichhabra.tech|' .env.prod || echo "CORS_ORIGINS not found, skipping sed"
+
             echo "==> Pulling latest compose config..."
             git pull origin main
 
