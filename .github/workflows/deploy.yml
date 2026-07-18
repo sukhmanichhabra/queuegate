@@ -235,14 +235,23 @@ jobs:
               up -d --no-build postgres redis kafka
 
             echo "==> Waiting for infra to be healthy..."
-            sleep 15
+            # Kafka needs ~45s to fully initialise in KRaft mode on t3.micro
+            sleep 45
 
             echo "==> Restarting API with new image..."
             docker compose -f docker-compose.prod.yml --env-file .env.prod \
               up -d --no-build api
 
             echo "==> Waiting for API health check..."
-            timeout 120 bash -c 'until curl -sf http://localhost:4000/ready; do sleep 5; done'
+            # The API container has NO host-exposed ports (Caddy reaches it internally).
+            # Use 'docker compose exec' to run curl inside the Docker network.
+            timeout 180 bash -c '
+              until docker compose -f docker-compose.prod.yml exec -T api \
+                curl -sf http://localhost:4000/ready > /dev/null 2>&1; do
+                echo "  API not ready yet, retrying in 5s..."
+                sleep 5
+              done
+            '
             echo "==> API is healthy!"
 
             echo "==> Restarting web with new image..."
