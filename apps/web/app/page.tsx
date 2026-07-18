@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, AnimatePresence, type Transition, type TargetAndTransition, type VariantLabels } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, type Transition, type TargetAndTransition } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -11,9 +11,9 @@ import { useRef, useEffect, useState, useCallback } from "react";
 /* ══════════════════════════════════════════════════
    VIDEO CROSSFADE
 ══════════════════════════════════════════════════ */
-type MotionInitial = boolean | TargetAndTransition | VariantLabels;
-type MotionAnimate = TargetAndTransition | VariantLabels;
-type MotionExit = TargetAndTransition | VariantLabels;
+type MotionInitial = boolean | TargetAndTransition;
+type MotionAnimate = TargetAndTransition;
+type MotionExit = TargetAndTransition;
 
 type Effect = {
   enter: { initial: MotionInitial; animate: MotionAnimate; transition: Transition };
