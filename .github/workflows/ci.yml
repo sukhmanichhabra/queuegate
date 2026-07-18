@@ -59,4 +59,12 @@ jobs:
           JWT_REFRESH_EXPIRES_IN: 7d
           CHECKOUT_TOKEN_TTL_SECONDS: 600
           NODE_ENV: test
-        run: pnpm --filter api test --passWithNoTests
+        run: |
+          pnpm --filter api test --passWithNoTests > jest.log 2>&1 || echo "JEST_FAILED=true" >> $GITHUB_ENV
+          echo "## Jest Logs" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat jest.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ "$JEST_FAILED" = "true" ]; then
+            exit 1
+          fi
