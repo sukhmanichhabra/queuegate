@@ -30,6 +30,7 @@ COPY apps/web/components      ./apps/web/components
 COPY apps/web/hooks           ./apps/web/hooks
 COPY apps/web/lib             ./apps/web/lib
 COPY apps/web/stores          ./apps/web/stores
+COPY apps/web/public          ./apps/web/public
 COPY apps/web/next.config.mjs ./apps/web/next.config.mjs
 COPY apps/web/tsconfig.json   ./apps/web/tsconfig.json
 COPY apps/web/postcss.config.js   ./apps/web/postcss.config.js

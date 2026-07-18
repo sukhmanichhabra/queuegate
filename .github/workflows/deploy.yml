@@ -222,6 +222,11 @@ jobs:
             echo "==> Logging into GitHub Container Registry..."
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
+            echo "==> Freeing disk space before pull (removing unused images + build cache)..."
+            docker image prune -af || true
+            docker builder prune -af || true
+            df -h / | tail -1  # show available space
+
             echo "==> Pulling pre-built images (tag: ${IMAGE_TAG})..."
             docker pull ${IMAGE_API}:${IMAGE_TAG}
             docker pull ${IMAGE_WEB}:${IMAGE_TAG}
