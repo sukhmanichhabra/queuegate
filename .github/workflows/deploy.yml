@@ -258,9 +258,19 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.prod \
               up -d --no-build web
 
-            echo "==> Starting reverse proxy..."
+            echo "==> Force-restarting Caddy to get fresh SSL certificate..."
+            # Stop and remove Caddy container + clear its data volume.
+            # This is needed because docker compose up -d won't restart a
+            # running container, and Caddy caches the ACME failure for hours.
+            # The caddy_data volume stores certs — clearing it forces a fresh
+            # Let's Encrypt challenge now that port 443 is open.
+            docker compose -f docker-compose.prod.yml --env-file .env.prod \
+              rm -f -s caddy || true
+            docker volume rm queuegate_caddy_data || true
             docker compose -f docker-compose.prod.yml --env-file .env.prod \
               up -d --no-build caddy
+            echo "==> Caddy started — waiting 30s for SSL certificate acquisition..."
+            sleep 30
 
             echo "==> Cleaning up old Docker images (older than 48h)..."
             docker image prune -f --filter "until=48h"
