@@ -11,10 +11,9 @@ import { useRef, useEffect, useState, useCallback } from "react";
 /* ══════════════════════════════════════════════════
    VIDEO CROSSFADE
 ══════════════════════════════════════════════════ */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TRANSITION_EFFECTS: Array<{
-  enter: { initial: any; animate: any; transition: Transition };
-  exit: { exit: any; transition: Transition };
+  enter: { initial: object; animate: object; transition: Transition };
+  exit: { exit: object; transition: Transition };
 }> = [
   {
     enter: { initial: { opacity: 0, scale: 1.08 }, animate: { opacity: 0.55, scale: 1.01 }, transition: { duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number] } },
