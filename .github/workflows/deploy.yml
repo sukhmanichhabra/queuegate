@@ -212,11 +212,12 @@ jobs:
             set -euo pipefail
             cd "$DEPLOY_PATH"
 
+            echo "==> Pulling latest compose config..."
+            git fetch origin main
+            git reset --hard origin/main
+
             echo "==> Updating CORS_ORIGINS in .env.prod for domain migration..."
             sed -i 's|^CORS_ORIGINS=.*|CORS_ORIGINS=https://queuegate.sukhmanichhabra.tech|' .env.prod || echo "CORS_ORIGINS not found, skipping sed"
-
-            echo "==> Pulling latest compose config..."
-            git pull origin main
 
             echo "==> Logging into GitHub Container Registry..."
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
