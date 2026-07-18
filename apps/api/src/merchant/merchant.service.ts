@@ -252,18 +252,23 @@ export class MerchantService {
 
     let skip = 0;
     const take = 1000;
-    while (true) {
-      const logs = await this.prisma.admissionRateLog.findMany({
+    let logs = await this.prisma.admissionRateLog.findMany({
+      where:   { event_id: eventId },
+      orderBy: { changed_at: 'asc' },
+      skip,
+      take,
+    });
+    while (logs.length > 0) {
+      for (const log of logs) {
+        res.write(`${log.id},${log.event_id},${log.rate},${log.reason},${log.changed_at?.toISOString() ?? ''}\n`);
+      }
+      skip += take;
+      logs = await this.prisma.admissionRateLog.findMany({
         where:   { event_id: eventId },
         orderBy: { changed_at: 'asc' },
         skip,
         take,
       });
-      if (logs.length === 0) break;
-      for (const log of logs) {
-        res.write(`${log.id},${log.event_id},${log.rate},${log.reason},${log.changed_at?.toISOString() ?? ''}\n`);
-      }
-      skip += take;
     }
     res.end();
   }
