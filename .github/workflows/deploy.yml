@@ -6,19 +6,23 @@
 #
 # Pipeline stages:
 #   1. test    — Run NestJS unit tests
-#   2. build   — Build Docker images and push to Amazon ECR Public
-#   3. deploy  — SSH into EC2, pull new images, restart services
+#   2. build   — Build Docker images on GitHub runners (16 GB RAM, FREE)
+#               and push to GitHub Container Registry (GHCR)
+#   3. deploy  — SSH into EC2, pull pre-built images, restart services
+#               EC2 server NEVER builds images — only pulls & runs them.
 #
 # Required GitHub Secrets (Settings → Secrets → Actions):
-#   AWS_ACCESS_KEY_ID         IAM user with ECR + ECR-Public permissions
-#   AWS_SECRET_ACCESS_KEY     matching secret
-#   EC2_HOST                  Elastic IP or domain of your EC2 instance
+#   GHCR_USERNAME             Your GitHub username (lowercase), e.g. sukhmanichhabra
+#   GHCR_TOKEN                GitHub PAT with write:packages scope
+#   EC2_HOST                  Public IP or domain of your EC2 instance
 #   EC2_USER                  ubuntu
-#   EC2_SSH_KEY               full content of your .pem private key file
+#   EC2_SSH_KEY               Full contents of your .pem private key file
 #   EC2_DEPLOY_PATH           /opt/queuegate
+#   NEXT_PUBLIC_API_URL       http://<your-ip-or-domain>/api
+#   NEXT_PUBLIC_WS_URL        http://<your-ip-or-domain>
 #
-# Optional but recommended:
-#   SLACK_WEBHOOK_URL         for deploy notifications
+# To switch to your domain later, just update EC2_HOST, NEXT_PUBLIC_API_URL,
+# and NEXT_PUBLIC_WS_URL in GitHub Secrets and push a new commit.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: CI / Deploy
@@ -30,18 +34,17 @@ on:
     branches: [main]
 
 env:
-  # ECR Public is free for public images — no cost for pulling
-  ECR_REGISTRY: public.ecr.aws
-  ECR_ALIAS: REPLACE_WITH_YOUR_ECR_PUBLIC_ALIAS   # e.g. a1b2c3d4e5f6
-  IMAGE_API: queuegate-api
-  IMAGE_WEB: queuegate-web
+  REGISTRY: ghcr.io
+  # Images will be: ghcr.io/sukhmanichhabra/queuegate-api
+  #                 ghcr.io/sukhmanichhabra/queuegate-web
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/queuegate-api
+  IMAGE_WEB: ghcr.io/${{ github.repository_owner }}/queuegate-web
 
 jobs:
   # ── Job 1: Run tests ─────────────────────────────────────────────────────────
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
-    # Only run tests on PRs and push — not on deploy-only changes
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
 
     services:
@@ -112,7 +115,7 @@ jobs:
           NODE_ENV: test
         run: pnpm test --passWithNoTests
 
-  # ── Job 2: Build & push Docker images to ECR Public ─────────────────────────
+  # ── Job 2: Build & push Docker images to GitHub Container Registry ────────────
   build:
     name: Build & Push Images
     runs-on: ubuntu-latest
@@ -130,18 +133,12 @@ jobs:
         id: meta
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1   # ECR Public is always us-east-1
-
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set up Docker Buildx (for cache & multi-platform)
         uses: docker/setup-buildx-action@v3
@@ -152,10 +149,9 @@ jobs:
           context: .
           file: apps/api/Dockerfile
           push: true
-          # Tag with both the short SHA and 'latest' for easy rollback
           tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_ALIAS }}/${{ env.IMAGE_API }}:${{ steps.meta.outputs.sha_short }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_ALIAS }}/${{ env.IMAGE_API }}:latest
+            ${{ env.IMAGE_API }}:${{ steps.meta.outputs.sha_short }}
+            ${{ env.IMAGE_API }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -165,14 +161,16 @@ jobs:
           context: .
           file: apps/web/Dockerfile
           push: true
-          # NEXT_PUBLIC_ vars must be set at build time
-          # These are read from GitHub secrets so they're in the bundle
+          # NEXT_PUBLIC_ vars are baked into the browser bundle at build time.
+          # They are read from GitHub Secrets here so the server never needs
+          # to rebuild the image when you change these values — just update
+          # the secret and push a commit to trigger a new build.
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_WS_URL=${{ secrets.NEXT_PUBLIC_WS_URL }}
           tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_ALIAS }}/${{ env.IMAGE_WEB }}:${{ steps.meta.outputs.sha_short }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_ALIAS }}/${{ env.IMAGE_WEB }}:latest
+            ${{ env.IMAGE_WEB }}:${{ steps.meta.outputs.sha_short }}
+            ${{ env.IMAGE_WEB }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -184,7 +182,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: https://${{ secrets.EC2_HOST }}
+      url: http://${{ secrets.EC2_HOST }}
 
     steps:
       - name: Checkout code (for docker-compose.prod.yml)
@@ -194,69 +192,71 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_ALIAS: ${{ env.ECR_ALIAS }}
           IMAGE_API: ${{ env.IMAGE_API }}
           IMAGE_WEB: ${{ env.IMAGE_WEB }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          DEPLOY_PATH: ${{ secrets.EC2_DEPLOY_PATH }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE_TAG,ECR_REGISTRY,ECR_ALIAS,IMAGE_API,IMAGE_WEB
+          envs: IMAGE_TAG,IMAGE_API,IMAGE_WEB,GHCR_USERNAME,GHCR_TOKEN,DEPLOY_PATH
           script: |
             set -euo pipefail
-            cd ${{ secrets.EC2_DEPLOY_PATH }}
+            cd "$DEPLOY_PATH"
 
-            echo "==> Pulling latest code..."
+            echo "==> Pulling latest compose config..."
             git pull origin main
 
-            echo "==> Authenticating with ECR Public..."
-            aws ecr-public get-login-password --region us-east-1 \
-              | docker login --username AWS --password-stdin public.ecr.aws
+            echo "==> Logging into GitHub Container Registry..."
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
-            echo "==> Pulling new images (tag: ${IMAGE_TAG})..."
-            docker pull ${ECR_REGISTRY}/${ECR_ALIAS}/${IMAGE_API}:${IMAGE_TAG}
-            docker pull ${ECR_REGISTRY}/${ECR_ALIAS}/${IMAGE_WEB}:${IMAGE_TAG}
+            echo "==> Pulling pre-built images (tag: ${IMAGE_TAG})..."
+            docker pull ${IMAGE_API}:${IMAGE_TAG}
+            docker pull ${IMAGE_WEB}:${IMAGE_TAG}
 
-            echo "==> Updating docker-compose.prod.yml to use pinned image tags..."
-            # Override the build: sections to use pre-built images from ECR
-            export API_IMAGE="${ECR_REGISTRY}/${ECR_ALIAS}/${IMAGE_API}:${IMAGE_TAG}"
-            export WEB_IMAGE="${ECR_REGISTRY}/${ECR_ALIAS}/${IMAGE_WEB}:${IMAGE_TAG}"
+            echo "==> Tagging pulled images as 'latest' for compose..."
+            docker tag ${IMAGE_API}:${IMAGE_TAG} ${IMAGE_API}:latest
+            docker tag ${IMAGE_WEB}:${IMAGE_TAG} ${IMAGE_WEB}:latest
 
-            echo "==> Restarting services (zero-downtime rolling)..."
-            # Restart infra first (postgres/redis/kafka rarely change)
+            echo "==> Starting infra services (postgres/redis/kafka)..."
             docker compose -f docker-compose.prod.yml --env-file .env.prod \
               up -d --no-build postgres redis kafka
 
-            # Wait for infra to be healthy before rolling API
-            sleep 10
+            echo "==> Waiting for infra to be healthy..."
+            sleep 15
 
-            # Restart API with new image
+            echo "==> Restarting API with new image..."
             docker compose -f docker-compose.prod.yml --env-file .env.prod \
               up -d --no-build api
 
-            # Wait for API health check
+            echo "==> Waiting for API health check..."
             timeout 120 bash -c 'until curl -sf http://localhost:4000/ready; do sleep 5; done'
             echo "==> API is healthy!"
 
-            # Restart web with new image
+            echo "==> Restarting web with new image..."
             docker compose -f docker-compose.prod.yml --env-file .env.prod \
               up -d --no-build web
 
-            echo "==> Cleaning up old Docker images..."
+            echo "==> Starting reverse proxy..."
+            docker compose -f docker-compose.prod.yml --env-file .env.prod \
+              up -d --no-build caddy
+
+            echo "==> Cleaning up old Docker images (older than 48h)..."
             docker image prune -f --filter "until=48h"
 
             echo "==> Deployment complete! Tag: ${IMAGE_TAG}"
 
       - name: Verify deployment health
         run: |
-          sleep 15
-          echo "Checking API health..."
-          curl -f https://${{ secrets.EC2_HOST }}/api/ready || exit 1
-          echo "✓ API is healthy"
+          sleep 20
           echo "Checking web..."
-          curl -f https://${{ secrets.EC2_HOST }} || exit 1
+          curl -f http://${{ secrets.EC2_HOST }} || exit 1
           echo "✓ Web is healthy"
+          echo "Checking API..."
+          curl -f http://${{ secrets.EC2_HOST }}/api/ready || exit 1
+          echo "✓ API is healthy"
 
       - name: Post deployment summary
         if: always()
@@ -267,4 +267,4 @@ jobs:
           echo "| **Status** | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Image Tag** | ${{ needs.build.outputs.image_tag }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Deployed At** | $(date -u '+%Y-%m-%d %H:%M UTC') |" >> $GITHUB_STEP_SUMMARY
-          echo "| **URL** | https://${{ secrets.EC2_HOST }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **URL** | http://${{ secrets.EC2_HOST }} |" >> $GITHUB_STEP_SUMMARY
