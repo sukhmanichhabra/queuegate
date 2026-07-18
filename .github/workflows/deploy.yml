@@ -84,7 +84,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -101,7 +101,6 @@ jobs:
         run: npx prisma migrate deploy --schema=./prisma/schema.prisma
 
       - name: Run unit tests
-        working-directory: apps/api
         env:
           DATABASE_URL: postgresql://postgres:test_secret@localhost:5432/queuegate_test
           REDIS_URL: redis://localhost:6379
@@ -113,7 +112,7 @@ jobs:
           JWT_REFRESH_EXPIRES_IN: 7d
           CHECKOUT_TOKEN_TTL_SECONDS: 600
           NODE_ENV: test
-        run: pnpm test --passWithNoTests
+        run: pnpm --filter api test --passWithNoTests
 
   # ── Job 2: Build & push Docker images to GitHub Container Registry ────────────
   build:
@@ -182,7 +181,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: http://${{ secrets.EC2_HOST }}
 
     steps:
       - name: Checkout code (for docker-compose.prod.yml)

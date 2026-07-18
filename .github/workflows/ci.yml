@@ -48,18 +48,15 @@ jobs:
         run: pnpm run --filter api --filter web lint
 
       - name: Run API Unit Tests
-        working-directory: apps/api
         env:
-          # These env vars prevent requireEnv() from crashing at module load
-          # time if any future unit test imports a NestJS module.
           DATABASE_URL: postgresql://postgres:secret@localhost:5432/queuegate
           REDIS_URL: redis://localhost:6379
           KAFKA_BROKERS: localhost:9092
-          JWT_ACCESS_SECRET: test_access_secret_32_chars_minimum!!
-          JWT_REFRESH_SECRET: test_refresh_secret_32_chars_minimum!!
-          JWT_WS_SECRET: test_ws_secret_here_32_chars_minimum!!!
+          JWT_ACCESS_SECRET: test_access_secret_32_chars_minimum
+          JWT_REFRESH_SECRET: test_refresh_secret_32_chars_minimum
+          JWT_WS_SECRET: test_ws_secret_here_32_chars_minimum
           JWT_ACCESS_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
           CHECKOUT_TOKEN_TTL_SECONDS: 600
           NODE_ENV: test
-        run: pnpm test --passWithNoTests
+        run: pnpm --filter api test --passWithNoTests
