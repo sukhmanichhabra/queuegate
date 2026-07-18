@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, AnimatePresence, type Transition } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, type Transition, type TargetAndTransition, type VariantLabels } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -11,10 +11,16 @@ import { useRef, useEffect, useState, useCallback } from "react";
 /* ══════════════════════════════════════════════════
    VIDEO CROSSFADE
 ══════════════════════════════════════════════════ */
-const TRANSITION_EFFECTS: Array<{
-  enter: { initial: object; animate: object; transition: Transition };
-  exit: { exit: object; transition: Transition };
-}> = [
+type MotionInitial = boolean | TargetAndTransition | VariantLabels;
+type MotionAnimate = TargetAndTransition | VariantLabels;
+type MotionExit = TargetAndTransition | VariantLabels;
+
+type Effect = {
+  enter: { initial: MotionInitial; animate: MotionAnimate; transition: Transition };
+  exit:  { exit: MotionExit; transition: Transition };
+};
+
+const TRANSITION_EFFECTS: Effect[] = [
   {
     enter: { initial: { opacity: 0, scale: 1.08 }, animate: { opacity: 0.55, scale: 1.01 }, transition: { duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number] } },
     exit:  { exit: { opacity: 0, scale: 0.97 }, transition: { duration: 2, ease: "easeIn" as const } },
