@@ -23,6 +23,18 @@ export class EventsService {
       }),
     ]);
 
+    if (events.length === 0) {
+      return {
+        data: [],
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     // ── Batch Redis ZCARD via pipeline — one network round-trip total ─────────
     // ioredis pipeline() batches all commands and resolves to an array of
     // [error, result] tuples, so we never do N sequential Redis calls.

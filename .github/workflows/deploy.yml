@@ -306,12 +306,12 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: DEPLOY_PATH
           script: |
-            echo "=== Last 100 lines of API container logs ==="
-            docker logs queuegate-api-1 --tail 100 2>&1 || docker logs $(docker ps -qf name=api) --tail 100 2>&1 || echo "Could not get API logs"
-            echo ""
             echo "=== Events endpoint response from inside Docker ==="
             docker compose -f "$DEPLOY_PATH/docker-compose.prod.yml" exec -T api \
               curl -s http://localhost:4000/events?limit=5 2>&1 || echo "Could not reach events endpoint internally"
+            echo ""
+            echo "=== Last 100 lines of API container logs ==="
+            docker logs queuegate-api-1 --tail 100 2>&1 || docker logs $(docker ps -qf name=api) --tail 100 2>&1 || echo "Could not get API logs"
 
       - name: Post deployment summary
         if: always()
