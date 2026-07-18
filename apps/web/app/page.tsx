@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence, type Transition } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -11,18 +11,22 @@ import { useRef, useEffect, useState, useCallback } from "react";
 /* ══════════════════════════════════════════════════
    VIDEO CROSSFADE
 ══════════════════════════════════════════════════ */
-const TRANSITION_EFFECTS = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TRANSITION_EFFECTS: Array<{
+  enter: { initial: any; animate: any; transition: Transition };
+  exit: { exit: any; transition: Transition };
+}> = [
   {
-    enter: { initial: { opacity: 0, scale: 1.08 }, animate: { opacity: 0.55, scale: 1.01 }, transition: { duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] } },
-    exit:  { exit: { opacity: 0, scale: 0.97 }, transition: { duration: 2, ease: "easeIn" } },
+    enter: { initial: { opacity: 0, scale: 1.08 }, animate: { opacity: 0.55, scale: 1.01 }, transition: { duration: 2.5, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number] } },
+    exit:  { exit: { opacity: 0, scale: 0.97 }, transition: { duration: 2, ease: "easeIn" as const } },
   },
   {
-    enter: { initial: { opacity: 0, x: 80, scale: 1.04 }, animate: { opacity: 0.55, x: 0, scale: 1 }, transition: { duration: 2.2, ease: [0.215, 0.61, 0.355, 1] } },
-    exit:  { exit: { opacity: 0, x: -80, scale: 0.98 }, transition: { duration: 1.8, ease: "easeIn" } },
+    enter: { initial: { opacity: 0, x: 80, scale: 1.04 }, animate: { opacity: 0.55, x: 0, scale: 1 }, transition: { duration: 2.2, ease: [0.215, 0.61, 0.355, 1] as [number, number, number, number] } },
+    exit:  { exit: { opacity: 0, x: -80, scale: 0.98 }, transition: { duration: 1.8, ease: "easeIn" as const } },
   },
   {
-    enter: { initial: { opacity: 0, scale: 1.2 }, animate: { opacity: 0.55, scale: 1 }, transition: { duration: 2.8, ease: [0.16, 1, 0.3, 1] } },
-    exit:  { exit: { opacity: 0, scale: 1.06 }, transition: { duration: 1.6, ease: "easeIn" } },
+    enter: { initial: { opacity: 0, scale: 1.2 }, animate: { opacity: 0.55, scale: 1 }, transition: { duration: 2.8, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] } },
+    exit:  { exit: { opacity: 0, scale: 1.06 }, transition: { duration: 1.6, ease: "easeIn" as const } },
   },
 ];
 
@@ -348,7 +352,7 @@ export default function LandingPage() {
           {/* Section header */}
           <div className="flex items-end justify-between mb-14">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
-              <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-3">// On Sale Now</p>
+              <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-3">{'// On Sale Now'}</p>
               <h2 className="font-[family-name:var(--font-bebas)] text-6xl md:text-7xl text-white tracking-wide leading-none">
                 Featured Acts
               </h2>
@@ -390,7 +394,7 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6 md:px-12">
           <motion.div className="text-center mb-20"
             initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
-            <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-4">// Built Different</p>
+            <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-4">{'// Built Different'}</p>
             <h2 className="font-[family-name:var(--font-bebas)] text-6xl md:text-8xl text-white tracking-wide">
               WHY QUEUEGATE?
             </h2>
@@ -420,7 +424,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-6 md:px-12">
           <motion.div className="text-center mb-20"
             initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-4">// Simple. Secure. Fast.</p>
+            <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-4">{'// Simple. Secure. Fast.'}</p>
             <h2 className="font-[family-name:var(--font-bebas)] text-6xl md:text-7xl text-white tracking-wide">HOW IT WORKS</h2>
           </motion.div>
 
@@ -466,7 +470,7 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-6 md:px-12">
           <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
             className="font-mono text-[11px] text-center text-[#e11d48] tracking-[0.3em] uppercase mb-14">
-            // Trusted by operators worldwide
+            {'// Trusted by operators worldwide'}
           </motion.p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -516,7 +520,7 @@ export default function LandingPage() {
 
         <div className="relative z-10 max-w-4xl mx-auto px-6 md:px-12 text-center">
           <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}>
-            <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-6">// The Gates are Open</p>
+            <p className="font-mono text-[11px] text-[#e11d48] tracking-[0.3em] uppercase mb-6">{'// The Gates are Open'}</p>
             <h2 className="font-[family-name:var(--font-bebas)] text-7xl sm:text-9xl text-white tracking-wide mb-6 leading-[0.88]"
               style={{ textShadow: "0 0 100px rgba(225,29,72,0.3)" }}>
               JOIN THE<br />QUEUE

@@ -488,7 +488,7 @@ export default function MerchantEventsPage() {
         >
           <div>
             <span className="font-mono text-[11px] text-[#e11d48] tracking-[0.22em] uppercase font-semibold block mb-2">
-              // MERCHANT PORTAL
+              {'// MERCHANT PORTAL'}
             </span>
             <h1 className="font-[family-name:var(--font-bebas)] text-5xl sm:text-6xl md:text-7xl text-white tracking-wide leading-none">
               My Events

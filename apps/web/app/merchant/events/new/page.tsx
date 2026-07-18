@@ -149,7 +149,7 @@ export default function NewEventPage() {
           className="mb-10"
         >
           <span className="font-mono text-[10px] text-[#e11d48] uppercase tracking-[0.22em] block mb-2">
-            // Merchant Portal
+            {'// Merchant Portal'}
           </span>
           <h1 className="font-[family-name:var(--font-bebas)] text-5xl sm:text-6xl text-white uppercase tracking-wide leading-none">
             New Event

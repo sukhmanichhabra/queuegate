@@ -272,7 +272,7 @@ export default function WaitingRoomPage({ params }: { params: { id: string } }) 
                 className="text-center mb-2"
               >
                 <span className="font-mono text-[10px] text-[#e11d48] uppercase tracking-[0.25em]">
-                  // Active Queue
+                  {'// Active Queue'}
                 </span>
                 <h1 className="font-[family-name:var(--font-bebas)] text-4xl sm:text-5xl text-white uppercase tracking-wide mt-1">
                   You&apos;re In Line

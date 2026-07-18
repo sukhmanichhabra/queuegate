@@ -275,7 +275,7 @@ function ReceiptModal({
                   <CheckCircle className="text-[#00b87c]" size={30} />
                 </div>
               </motion.div>
-              <p className="font-mono text-[9px] text-[#00b87c] tracking-[0.3em] uppercase mb-1">// Purchase Confirmed</p>
+              <p className="font-mono text-[9px] text-[#00b87c] tracking-[0.3em] uppercase mb-1">{'// Purchase Confirmed'}</p>
               <h3 className="font-[family-name:var(--font-bebas)] text-4xl text-white tracking-wide mb-1">TICKETS SECURED</h3>
               <p className="font-mono text-[10px] text-white/30 uppercase tracking-widest mb-5">Cryptographic signature validated</p>
               <motion.div
@@ -345,7 +345,7 @@ function ExpiredOverlay({ onDismiss }: { onDismiss: () => void }) {
             style={{ background: "rgba(225,29,72,0.1)", border: "1px solid rgba(225,29,72,0.25)" }}>
             <Timer size={28} className="text-[#e11d48]" />
           </div>
-          <p className="font-mono text-[9px] text-[#e11d48]/60 tracking-[0.3em] uppercase mb-2">// Session Expired</p>
+          <p className="font-mono text-[9px] text-[#e11d48]/60 tracking-[0.3em] uppercase mb-2">{'// Session Expired'}</p>
           <h2 className="font-[family-name:var(--font-bebas)] text-5xl text-white tracking-wide mb-2">TIME'S UP</h2>
           <p className="font-mono text-[11px] text-white/30 uppercase tracking-widest leading-relaxed mb-7">
             Your checkout window has closed.<br />Your spot was released back to the queue.
@@ -622,7 +622,7 @@ export default function CheckoutPage({ params }: { params: { id: string } }) {
                 transition={{ delay: 0.35, duration: 0.5 }}
               >
                 <p className="font-mono text-[10px] text-[#e11d48]/70 tracking-[0.35em] uppercase mb-3">
-                  // Queue Clearance Granted
+                  {'// Queue Clearance Granted'}
                 </p>
                 <h1 className="font-[family-name:var(--font-bebas)] text-5xl sm:text-6xl text-white tracking-wide leading-none mb-2"
                   style={{ textShadow: "0 0 40px rgba(225,29,72,0.3)" }}>

@@ -117,7 +117,7 @@ export default function EventsCatalogPage() {
           className="mb-10"
         >
           <span className="font-mono text-[11px] text-[#e11d48] tracking-[0.22em] uppercase font-semibold block mb-3">
-            // SECURE QUEUE PORTAL
+            {'// SECURE QUEUE PORTAL'}
           </span>
           <h1 className="font-[family-name:var(--font-bebas)] text-[clamp(3.5rem,10vw,7rem)] text-white leading-none uppercase tracking-tight mb-4">
             Live Events

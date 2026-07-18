@@ -210,7 +210,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10 flex flex-col justify-center items-center text-center p-14 w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.8 }} className="max-w-xl">
-            <p className="font-mono text-[11px] text-[#a855f7] tracking-[0.3em] uppercase mb-6">// Your Journey Starts Here</p>
+            <p className="font-mono text-[11px] text-[#a855f7] tracking-[0.3em] uppercase mb-6">{'// Your Journey Starts Here'}</p>
             <h2 className="font-[family-name:var(--font-bebas)] text-6xl xl:text-8xl text-white leading-none mb-6"
               style={{ textShadow: "0 0 60px rgba(168,85,247,0.3)" }}>
               GET YOUR<br />
