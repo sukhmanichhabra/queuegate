@@ -68,7 +68,7 @@ export class AdmissionService {
 
       if (isTerminal) {
         await this.prisma.queueEntry.delete({ where: { id: existing.id } });
-        await this.redis.client.zrem(`event:${eventId}:queue`, sessionId);
+        try { await this.redis.client.zrem(`event:${eventId}:queue`, sessionId); } catch { /* Redis blip — entry deleted from DB, Redis will self-heal */ }
       } else {
         throw new ConflictException('Session already in queue for this event');
       }
@@ -85,9 +85,10 @@ export class AdmissionService {
       },
     });
     const nowMs = Date.now();
-    await this.redis.client.zadd(`event:${eventId}:queue`, nowMs, sessionId);
+    try { await this.redis.client.zadd(`event:${eventId}:queue`, nowMs, sessionId); } catch { /* Redis blip — entry is in DB; queue depth may be stale */ }
 
-    const queueDepth = await this.redis.client.zcard(`event:${eventId}:queue`);
+    let queueDepth = 0;
+    try { queueDepth = await this.redis.client.zcard(`event:${eventId}:queue`); } catch { queueDepth = 0; }
 
     await this.kafka.produce('queue.joined', {
       eventId,
@@ -120,14 +121,17 @@ export class AdmissionService {
 
     let etaSeconds = 0;
     let position   = 0;
-    const total    = await this.redis.client.zcard(`event:${eventId}:queue`);
+    let total      = 0;
+    try { total = await this.redis.client.zcard(`event:${eventId}:queue`); } catch { total = 0; }
 
     if (entry.status === 'WAITING') {
       const eta = await this.etaService.computeETA(eventId, sessionId);
       if (eta !== null) {
         etaSeconds = eta;
-        const rank = await this.redis.client.zrank(`event:${eventId}:queue`, sessionId);
-        position   = rank !== null ? rank + 1 : 0;
+        try {
+          const rank = await this.redis.client.zrank(`event:${eventId}:queue`, sessionId);
+          position   = rank !== null ? rank + 1 : 0;
+        } catch { position = 0; }
       }
     }
 

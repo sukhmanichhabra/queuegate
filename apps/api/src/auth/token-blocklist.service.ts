@@ -26,8 +26,13 @@ export class TokenBlocklistService {
    */
   async isRevoked(jti: string | undefined): Promise<boolean> {
     if (!jti) return false;
-    const result = await this.redis.client.get(`${this.PREFIX}${jti}`);
-    return result !== null;
+    try {
+      const result = await this.redis.client.get(`${this.PREFIX}${jti}`);
+      return result !== null;
+    } catch {
+      // Redis unavailable — fail open (allow the request) rather than crashing
+      return false;
+    }
   }
 
   /**
@@ -46,6 +51,10 @@ export class TokenBlocklistService {
     // Never write a zero or negative TTL to Redis.
     if (remainingSec <= 0) return;
 
-    await this.redis.client.set(`${this.PREFIX}${jti}`, '1', 'EX', remainingSec);
+    try {
+      await this.redis.client.set(`${this.PREFIX}${jti}`, '1', 'EX', remainingSec);
+    } catch {
+      // Redis unavailable — revocation skipped; token will expire naturally
+    }
   }
 }
