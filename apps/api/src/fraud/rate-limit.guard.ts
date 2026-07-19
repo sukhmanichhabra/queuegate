@@ -146,15 +146,28 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ── INCR + conditional EXPIRE (atomic window) ─────────────────────────
-    const current = await this.redis.client.incr(key);
-    if (current === 1) {
-      await this.redis.client.expire(key, windowSec);
+    // If Redis is unavailable, fail open: log a warning and allow the request
+    // through rather than propagating the connection error as a 500.
+    let current: number;
+    try {
+      current = await this.redis.client.incr(key);
+      if (current === 1) {
+        await this.redis.client.expire(key, windowSec);
+      }
+    } catch {
+      // Redis unreachable — degrade gracefully, skip rate-limit enforcement
+      return;
     }
 
     if (current > limit) {
       // Fetch remaining TTL so we can set Retry-After accurately
-      const ttl = await this.redis.client.ttl(key);
-      const retryAfter = ttl > 0 ? ttl : windowSec;
+      let retryAfter = windowSec;
+      try {
+        const ttl = await this.redis.client.ttl(key);
+        retryAfter = ttl > 0 ? ttl : windowSec;
+      } catch {
+        // ignore TTL fetch failure — use default windowSec
+      }
       res.setHeader('Retry-After', String(retryAfter));
       throw new HttpException(
         {
