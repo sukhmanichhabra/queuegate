@@ -76,6 +76,22 @@ export class MerchantService {
     return event;
   }
 
+  async deleteEvent(merchantId: string, eventId: string): Promise<void> {
+    // Verify ownership (throws NotFoundException if not owner)
+    await this.getEvent(merchantId, eventId);
+
+    // Stop any running admission tick job for this event
+    await this.tickProcessor.removeEventJob(eventId);
+
+    // Cascade-delete all related rows then the event itself
+    await this.prisma.$transaction(async (tx) => {
+      await tx.ticketCategory.deleteMany({ where: { event_id: eventId } });
+      await tx.admissionRateLog.deleteMany({ where: { event_id: eventId } });
+      await tx.queueEntry.deleteMany({ where: { event_id: eventId } });
+      await tx.event.delete({ where: { id: eventId } });
+    });
+  }
+
   async updateEvent(merchantId: string, eventId: string, dto: UpdateEventDto) {
     await this.getEvent(merchantId, eventId); // verify ownership
 

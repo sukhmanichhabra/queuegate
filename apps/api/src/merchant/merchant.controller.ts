@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req, Res, HttpCode, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { MerchantService } from './merchant.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -101,6 +101,17 @@ export class MerchantController {
   @Get(':id/categories')
   getCategories(@Param('id') eventId: string) {
     return this.merchantService.getCategories(eventId);
+  }
+
+  // ── Delete event ───────────────────────────────────────────────────────────
+  /** DELETE /merchants/events/:id — permanently removes a DRAFT or merchant-owned event */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(RateLimitGuard)
+  @RateLimit(MERCHANT_WRITE_RATE_LIMIT)
+  deleteEvent(@Req() req: any, @Param('id') eventId: string) {
+    const merchantId = this.getMerchantId(req);
+    return this.merchantService.deleteEvent(merchantId, eventId);
   }
 
   // Read-only export — NOT rate-limited
